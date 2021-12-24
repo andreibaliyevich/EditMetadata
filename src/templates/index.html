@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+
+{% load bootstrap5 %}
+
+
+{% block content %}
+
+<form class="px-md-5 mx-md-5" method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  {% bootstrap_form form layout='horizontal' %}
+  {% buttons submit='Get image' %}{% endbuttons %}
+</form>
+
+{% endblock content %}
