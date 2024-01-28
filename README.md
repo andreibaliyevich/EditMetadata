@@ -21,11 +21,15 @@
 
     cd EditMetadata
 
-##### 3. Создать образ
+##### 3. Создать папку media в папке src
+
+    mkdir src/media
+
+##### 4. Создать образ
 
     docker-compose build
 
-##### 4. Запустить контейнер
+##### 5. Запустить контейнер
 
     docker-compose up
 
