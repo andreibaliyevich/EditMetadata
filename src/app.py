@@ -6,7 +6,7 @@ from exif import Image as ExifImage
 from exif import DATETIME_STR_FORMAT
 from PIL import Image, ImageDraw, ImageFont, ExifTags
 from flask_bootstrap import Bootstrap5
-from flask_wtf import FlaskForm, CSRFProtect
+from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import DateTimeField, IntegerField, SelectField, SubmitField
 from wtforms.validators import InputRequired
@@ -17,7 +17,6 @@ from flask import Flask, render_template, send_file
 app = Flask(__name__)
 app.secret_key = secrets.token_urlsafe(16)
 Bootstrap5(app)
-CSRFProtect(app)
 
 
 class ImageDateGPSForm(FlaskForm):
@@ -67,24 +66,24 @@ class ImageDateGPSForm(FlaskForm):
 
 
 def edit_image(img_path, form):
-    img = Image.open(img_path)
+    pil_img = Image.open(img_path)
 
     for orientation in ExifTags.TAGS.keys():
         if ExifTags.TAGS[orientation] == 'Orientation':
             break
-    if img._getexif():
-        exif = dict(img._getexif().items())
+    if pil_img._getexif():
+        exif = dict(pil_img._getexif().items())
         try:
             if exif[orientation] == 3:
-                img = img.rotate(180, expand=True)
+                pil_img = pil_img.rotate(180, expand=True)
             elif exif[orientation] == 6:
-                img = img.rotate(270, expand=True)
+                pil_img = pil_img.rotate(270, expand=True)
             elif exif[orientation] == 8:
-                img = img.rotate(90, expand=True)
+                pil_img = pil_img.rotate(90, expand=True)
         except BaseException:
             pass
 
-    img_width, img_height = img.size
+    img_width, img_height = pil_img.size
 
     datetime_str = form.date.data.strftime('%m/%d/%Y %H:%M:%S')
     gps_str = (
@@ -122,18 +121,18 @@ def edit_image(img_path, form):
         gps_width = int(img_width - (dp * 1650 / 5040))
 
     fnt = ImageFont.truetype('/usr/src/app/static/arialmt.ttf', fnt_size)
-    d = ImageDraw.Draw(img)
+    d = ImageDraw.Draw(pil_img)
 
     d.multiline_text((datetime_width, datetime_height), datetime_str,
                      font=fnt, fill=(255, 255, 255))
     d.multiline_text((gps_width, gps_height), gps_str,
                      font=fnt, fill=(255, 255, 255))
 
-    img_path = f'/usr/src/app/media/{datetime.now().timestamp()}.jpg'
-    img.save(img_path)
-    img.close()
+    pil_img_path = f'/usr/src/app/media/{datetime.now().timestamp()}.jpg'
+    pil_img.save(pil_img_path)
+    pil_img.close()
 
-    with open(img_path, 'rb') as img_file:
+    with open(pil_img_path, 'rb') as img_file:
         exif_img = ExifImage(img_file)
 
         datetime_str = form.date.data.strftime(DATETIME_STR_FORMAT)
@@ -160,8 +159,7 @@ def edit_image(img_path, form):
         with open(new_img_path, 'wb') as new_img_file:
             new_img_file.write(exif_img.get_file())
 
-    os.remove(img_path)
-
+    os.remove(pil_img_path)
     return new_img_path
 
 
