@@ -4,7 +4,7 @@ import secrets
 from datetime import datetime
 from exif import Image as ExifImage
 from exif import DATETIME_STR_FORMAT
-from PIL import Image, ImageDraw, ImageFont, ExifTags
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 from flask_bootstrap import Bootstrap5
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
@@ -66,71 +66,64 @@ class ImageDateGPSForm(FlaskForm):
 
 
 def edit_image(img_path, form):
-    pil_img = Image.open(img_path)
+    with Image.open(img_path) as pil_img:
+        ImageOps.exif_transpose(pil_img, in_place=True)
 
-    for orientation in ExifTags.TAGS.keys():
-        if ExifTags.TAGS[orientation] == 'Orientation':
-            break
-    if pil_img._getexif():
-        exif = dict(pil_img._getexif().items())
-        try:
-            if exif[orientation] == 3:
-                pil_img = pil_img.rotate(180, expand=True)
-            elif exif[orientation] == 6:
-                pil_img = pil_img.rotate(270, expand=True)
-            elif exif[orientation] == 8:
-                pil_img = pil_img.rotate(90, expand=True)
-        except BaseException:
-            pass
+        img_width, img_height = pil_img.size
 
-    img_width, img_height = pil_img.size
+        datetime_str = form.date.data.strftime('%m/%d/%Y %H:%M:%S')
+        gps_str = (
+            f'{ form.latitude_a.data }º '
+            f'{ form.latitude_m.data }\' '
+            f'{ form.latitude_s.data }" '
+            f'{ form.latitude_ref.data }, '
+            f'{ form.longitude_a.data }º '
+            f'{ form.longitude_m.data }\' '
+            f'{ form.longitude_s.data }" '
+            f'{ form.longitude_ref.data }'
+        )
 
-    datetime_str = form.date.data.strftime('%m/%d/%Y %H:%M:%S')
-    gps_str = (
-        f'{ form.latitude_a.data }º '
-        f'{ form.latitude_m.data }\' '
-        f'{ form.latitude_s.data }" '
-        f'{ form.latitude_ref.data }, '
-        f'{ form.longitude_a.data }º '
-        f'{ form.longitude_m.data }\' '
-        f'{ form.longitude_s.data }" '
-        f'{ form.longitude_ref.data }'
-    )
+        dp = math.sqrt(math.pow(img_width, 2) + math.pow(img_height, 2))
+        fnt_size = int(dp * 125 / 5040)
+        datetime_width = int(img_width - (dp * 1280 / 5040))
+        datetime_height = int(img_height - (dp * 380 / 5040))
+        gps_height = int(img_height - (dp * 240 / 5040))
 
-    dp = math.sqrt(math.pow(img_width, 2) + math.pow(img_height, 2))
-    fnt_size = int(dp * 125 / 5040)
-    datetime_width = int(img_width - (dp * 1280 / 5040))
-    datetime_height = int(img_height - (dp * 380 / 5040))
-    gps_height = int(img_height - (dp * 240 / 5040))
+        if len(gps_str) == 28:
+            gps_width = int(img_width - (dp * 1650 / 5040))
+        elif len(gps_str) == 27:
+            gps_width = int(img_width - (dp * 1580 / 5040))
+        elif len(gps_str) == 26:
+            gps_width = int(img_width - (dp * 1510 / 5040))
+        elif len(gps_str) == 25:
+            gps_width = int(img_width - (dp * 1440 / 5040))
+        elif len(gps_str) == 24:
+            gps_width = int(img_width - (dp * 1370 / 5040))
+        elif len(gps_str) == 23:
+            gps_width = int(img_width - (dp * 1300 / 5040))
+        elif len(gps_str) == 22:
+            gps_width = int(img_width - (dp * 1230 / 5040))
+        else:
+            gps_width = int(img_width - (dp * 1650 / 5040))
 
-    if len(gps_str) == 28:
-        gps_width = int(img_width - (dp * 1650 / 5040))
-    elif len(gps_str) == 27:
-        gps_width = int(img_width - (dp * 1580 / 5040))
-    elif len(gps_str) == 26:
-        gps_width = int(img_width - (dp * 1510 / 5040))
-    elif len(gps_str) == 25:
-        gps_width = int(img_width - (dp * 1440 / 5040))
-    elif len(gps_str) == 24:
-        gps_width = int(img_width - (dp * 1370 / 5040))
-    elif len(gps_str) == 23:
-        gps_width = int(img_width - (dp * 1300 / 5040))
-    elif len(gps_str) == 22:
-        gps_width = int(img_width - (dp * 1230 / 5040))
-    else:
-        gps_width = int(img_width - (dp * 1650 / 5040))
+        fnt = ImageFont.truetype('/usr/src/app/static/arialmt.ttf', fnt_size)
 
-    fnt = ImageFont.truetype('/usr/src/app/static/arialmt.ttf', fnt_size)
-    d = ImageDraw.Draw(pil_img)
+        draw = ImageDraw.Draw(pil_img)
+        draw.multiline_text(
+            (datetime_width, datetime_height),
+            datetime_str,
+            font=fnt,
+            fill=(255, 255, 255),
+        )
+        draw.multiline_text(
+            (gps_width, gps_height),
+            gps_str,
+            font=fnt,
+            fill=(255, 255, 255),
+        )
 
-    d.multiline_text((datetime_width, datetime_height), datetime_str,
-                     font=fnt, fill=(255, 255, 255))
-    d.multiline_text((gps_width, gps_height), gps_str,
-                     font=fnt, fill=(255, 255, 255))
-
-    pil_img_path = f'/usr/src/app/media/{datetime.now().timestamp()}.jpg'
-    pil_img.save(pil_img_path)
-    pil_img.close()
+        pil_img_path = f'/usr/src/app/media/{datetime.now().timestamp()}.jpg'
+        pil_img.save(pil_img_path)
 
     with open(pil_img_path, 'rb') as img_file:
         exif_img = ExifImage(img_file)
@@ -143,11 +136,13 @@ def edit_image(img_path, form):
         gps_latitude = (
             form.latitude_a.data,
             form.latitude_m.data,
-            form.latitude_s.data)
+            form.latitude_s.data,
+        )
         gps_longitude = (
             form.longitude_a.data,
             form.longitude_m.data,
-            form.longitude_s.data)
+            form.longitude_s.data,
+        )
         exif_img.gps_latitude = gps_latitude
         exif_img.gps_latitude_ref = form.latitude_ref.data
         exif_img.gps_longitude = gps_longitude
