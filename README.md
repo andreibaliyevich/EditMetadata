@@ -27,11 +27,11 @@
 
 ##### 4. Создать образ
 
-    docker-compose build
+    docker compose build
 
 ##### 5. Запустить контейнер
 
-    docker-compose up
+    docker compose up
 
 
 ## Лицензия
