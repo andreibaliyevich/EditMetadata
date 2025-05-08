@@ -29,7 +29,7 @@
 
     docker compose build
 
-##### 5. Запустить контейнер
+##### 5. Запустить сервис
 
     docker compose up
 
